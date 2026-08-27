@@ -62,14 +62,14 @@ Inicialmente, a aplicação deverá verificar:
 
 ```text
 AnalisaLink/
-├── docs/
+├── Docs/
 │   └── proposta.md
 └── README.md
 ```
 
 ## Documentação
 
-A proposta e a especificação inicial do projeto estão disponíveis em [`docs/proposta.md`](docs/proposta.md).
+A proposta e a especificação inicial do projeto estão disponíveis em [`Docs/proposta.md`](Docs/proposta.md).
 
 ## Situação do projeto
 
