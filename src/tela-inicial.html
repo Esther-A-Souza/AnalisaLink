@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0">
+    <title> AnalisaLink </title>
+</head>
+
+<body>
+<header>
+    <h1>AnalisaLink</h1>
+
+    <!-- abas -->
+    <nav aria-label="Navegação">
+        <ul class = "abas">
+            <li>
+                <a href="tela-inicial.html" class="active" aria-current="page">Início</a>
+            </li>
+            <li>
+                <a href="resultado.html"> Resultado</a>
+            </li>
+            <li>
+                <a href="historico.html"> Histórico</a>
+            </li>
+        </ul>
+    </nav>
+<!--fim abas-->
+</header>
+
+<main>
+    <section>
+    <p> O site “AnalisaLink” é uma ferramenta de análise de URL. Seu objetivo é identificar características visíveis que podem indicar que um endereço exige atenção. </p>
+    <p> A aplicação não abre nem acessa os links informados. Também não garante que uma URL seja segura ou maliciosa, apresentando apenas os sinais encontrados durante a análise. </p>
+
+    <form action="resultado.html" method="get">
+    <label for="url-user"> Digite a URL:</label>
+    <input
+    type="url"
+    id="url-user"
+    name="url"
+    placeholder="https://exemplo.com"
+    required
+    >
+    <button type="submit"> Analisar </button>
+</form>
+</section>
+</main>
+
+
+</body>
+</html>
