@@ -1,73 +1,27 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
-    <meta charset="UTF-8">
-    <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0">
-    <title> Resultado </title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnalisaLink | Resultado</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 <header>
-    <h1> AnalisaLink </h1>
-    <!-- abas -->
+  <div class="header-content">
+    <h1>AnalisaLink</h1>
     <nav aria-label="Navegação">
-        <ul class = "abas">
-            <li>
-                <a href="tela-inicial.html">Início</a>
-            </li>
-            <li>
-                <a href="resultado.html" class="active" aria-current="page"> Resultado</a>
-            </li>
-            <li>
-                <a href="historico.html"> Histórico</a>
-            </li>
-        </ul>
+      <ul class="abas">
+        <li><a href="tela-inicial.html">Início</a></li>
+        <li><a href="resultado.html" class="active" aria-current="page">Resultado</a></li>
+        <li><a href="historico.html">Histórico</a></li>
+      </ul>
     </nav>
-<!--fim abas-->
+  </div>
 </header>
 <main>
-    <section>
-        <h2>Resultado da análise</h2>
-
-        <article>
-            <h3>Informações da URL</h3>
-
-            <p>
-                <strong>URL analisada:</strong>
-            </p>
-            <p>
-                <strong>Protocolo:</strong>
-            </p>
-            <p>
-                <strong>Domínio:</strong>
-            </p>
-            <p>
-                <strong>Caminho:</strong>
-            </p>
-        </article>
-
-        <article>
-            <h3>Classificação</h3>
-            <p>
-                <strong>Pontuação de atenção:</strong>
-            </p>
-            <p>
-                <strong>Classificação:</strong>
-            </p>
-        </article>
-
-        <section>
-            <h3>Sinais encontrados</h3>
-        </section>
-
-        <p>
-            Este é apenas um resultado demonstrativo.
-        </p>
-    </section>
+  <section id="resultado" class="card"></section>
 </main>
-    
-    </body>
+<script src="script.js"></script>
+</body>
 </html>
