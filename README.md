@@ -73,7 +73,13 @@ A proposta e a especificação inicial do projeto estão disponíveis em [`docs/
 
 ## Situação do projeto
 
-O projeto está em fase de planejamento e será desenvolvido de forma incremental ao longo do semestre.
+- `etapa-01` — Proposta
+- `etapa-02` — Protótipo estrutural com HTML semântico
+- `etapa-03` — Interface responsiva com CSS
+- `etapa-04` — Interatividade com JavaScript
+
+## Executar
+Abra `src/tela-inicial.html` no navegador, de preferência com a extensão Live Server do VS Code. O histórico usa `localStorage` do navegador.
 
 ## Limitações
 
