@@ -1,0 +1,11 @@
+{
+  "name": "analisalink",
+  "version": "1.0.0",
+  "description": "Ferramenta acadêmica de análise de características visíveis de URLs.",
+  "scripts": {
+    "api": "json-server --watch db.json --port 3000 --delay 800"
+  },
+  "devDependencies": {
+    "json-server": "0.17.4"
+  }
+}
