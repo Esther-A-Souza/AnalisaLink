@@ -1,0 +1,49 @@
+{
+  "analises": [
+    {
+      "id": 1,
+      "url": "http://192.168.0.10/login",
+      "protocol": "http",
+      "domain": "192.168.0.10",
+      "path": "/login",
+      "score": 55,
+      "classification": "Suspeita",
+      "signals": [
+        {
+          "texto": "Usa HTTP em vez de HTTPS.",
+          "pontos": 15
+        },
+        {
+          "texto": "Usa um endereço IP no lugar de um domínio.",
+          "pontos": 30
+        },
+        {
+          "texto": "Contém a palavra \"login\".",
+          "pontos": 10
+        }
+      ],
+      "date": "01/10/2026 07:44:49"
+    },
+    {
+      "valid": true,
+      "url": "http://login.com",
+      "protocol": "http",
+      "domain": "login.com",
+      "path": "/",
+      "score": 25,
+      "classification": "Atenção moderada",
+      "signals": [
+        {
+          "texto": "Usa HTTP em vez de HTTPS.",
+          "pontos": 15
+        },
+        {
+          "texto": "Contém a palavra \"login\".",
+          "pontos": 10
+        }
+      ],
+      "date": "18/11/2026, 15:51:07",
+      "id": 2
+    }
+  ]
+}
