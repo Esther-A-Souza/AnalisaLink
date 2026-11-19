@@ -22,28 +22,8 @@
           "pontos": 10
         }
       ],
-      "date": "01/10/2026 07:44:49"
-    },
-    {
-      "valid": true,
-      "url": "http://login.com",
-      "protocol": "http",
-      "domain": "login.com",
-      "path": "/",
-      "score": 25,
-      "classification": "Atenção moderada",
-      "signals": [
-        {
-          "texto": "Usa HTTP em vez de HTTPS.",
-          "pontos": 15
-        },
-        {
-          "texto": "Contém a palavra \"login\".",
-          "pontos": 10
-        }
-      ],
-      "date": "18/11/2026, 15:51:07",
-      "id": 2
+      "date": "01/10/2026 07:44:49",
+      "observacao": ""
     }
   ]
 }
