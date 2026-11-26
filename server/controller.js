@@ -1,17 +1,14 @@
 // Regras de cada operação da API. Cada função recebe { params, query, body }
 // e devolve { status, corpo, headers } ou lança ErroHttp.
+// O controller NÃO conhece SQL: ele só usa as funções de repository.js.
 import { analyzeUrl } from "../src/js/analyzer.js";   // mesmas regras do front-end
-import { carregar, salvar } from "./repository.js";
+import * as repositorio from "./repository.js";
 import { ErroHttp } from "./erros.js";
 
 const CLASSIFICACOES = ["Baixa atenção", "Atenção moderada", "Suspeita"];
 const LIMITE_OBSERVACAO = 200;
 
 /* ---------- funções auxiliares ---------- */
-
-function agora() {
-  return new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-}
 
 function lerId(params) {
   const id = Number(params.id);
@@ -64,7 +61,7 @@ function montarAnalise(url) {
 /* ---------- operações ---------- */
 
 export function raiz() {
-  return { status: 200, corpo: { nome: "AnalisaLink API", versao: "1.0.0", recursos: { analises: "/analises" } } };
+  return { status: 200, corpo: { nome: "AnalisaLink API", versao: "2.0.0", recursos: { analises: "/analises" } } };
 }
 
 // GET /analises
@@ -81,22 +78,13 @@ export function listar({ query }) {
     throw new ErroHttp(400, "VALIDACAO", "Parâmetros de consulta inválidos.", detalhes);
   }
 
-  let lista = carregar().analises;
-  if (busca) {
-    const termo = busca.toLowerCase();
-    lista = lista.filter((a) => (a.url + " " + a.classification).toLowerCase().includes(termo));
-  }
-  if (classificacao) {
-    lista = lista.filter((a) => a.classification === classificacao);
-  }
-  lista = [...lista].sort((a, b) => (ordem === "asc" ? a.id - b.id : b.id - a.id));
-  return { status: 200, corpo: lista };
+  return { status: 200, corpo: repositorio.listar({ busca, classificacao, ordem }) };
 }
 
 // GET /analises/:id
 export function buscar({ params }) {
   const id = lerId(params);
-  const analise = carregar().analises.find((a) => a.id === id);
+  const analise = repositorio.buscarPorId(id);
   if (!analise) throw naoEncontrada(id);
   return { status: 200, corpo: analise };
 }
@@ -106,13 +94,8 @@ export function criar({ body }) {
   exigirObjeto(body);
   validarCampos(body, true);
 
-  const bd = carregar();
-  const id = bd.analises.reduce((maior, a) => Math.max(maior, a.id), 0) + 1;
-  const nova = { id, ...montarAnalise(body.url.trim()), observacao: body.observacao ?? "", date: agora() };
-
-  bd.analises.push(nova);
-  salvar(bd);
-  return { status: 201, corpo: nova, headers: { Location: "/analises/" + id } };
+  const nova = repositorio.criar({ ...montarAnalise(body.url.trim()), observacao: body.observacao ?? "" });
+  return { status: 201, corpo: nova, headers: { Location: "/analises/" + nova.id } };
 }
 
 // PUT /analises/:id  (substitui os dados editáveis: url e observacao)
@@ -121,19 +104,8 @@ export function substituir({ params, body }) {
   exigirObjeto(body);
   validarCampos(body, true);
 
-  const bd = carregar();
-  const indice = bd.analises.findIndex((a) => a.id === id);
-  if (indice === -1) throw naoEncontrada(id);
-
-  const nova = {
-    id,
-    ...montarAnalise(body.url.trim()),
-    observacao: body.observacao ?? "",
-    date: bd.analises[indice].date,
-    atualizadoEm: agora()
-  };
-  bd.analises[indice] = nova;
-  salvar(bd);
+  const nova = repositorio.substituir(id, { ...montarAnalise(body.url.trim()), observacao: body.observacao ?? "" });
+  if (!nova) throw naoEncontrada(id);
   return { status: 200, corpo: nova };
 }
 
@@ -148,26 +120,18 @@ export function atualizar({ params, body }) {
   }
   validarCampos(body, false);
 
-  const bd = carregar();
-  const indice = bd.analises.findIndex((a) => a.id === id);
-  if (indice === -1) throw naoEncontrada(id);
+  const parcial = {};
+  if ("url" in body) Object.assign(parcial, montarAnalise(body.url.trim()));
+  if ("observacao" in body) parcial.observacao = body.observacao;
 
-  let nova = { ...bd.analises[indice], atualizadoEm: agora() };
-  if ("url" in body) nova = { ...nova, ...montarAnalise(body.url.trim()) };
-  if ("observacao" in body) nova.observacao = body.observacao;
-
-  bd.analises[indice] = nova;
-  salvar(bd);
+  const nova = repositorio.atualizar(id, parcial);
+  if (!nova) throw naoEncontrada(id);
   return { status: 200, corpo: nova };
 }
 
 // DELETE /analises/:id
 export function excluir({ params }) {
   const id = lerId(params);
-  const bd = carregar();
-  if (!bd.analises.some((a) => a.id === id)) throw naoEncontrada(id);
-
-  bd.analises = bd.analises.filter((a) => a.id !== id);
-  salvar(bd);
+  if (!repositorio.excluir(id)) throw naoEncontrada(id);
   return { status: 204 };
 }
