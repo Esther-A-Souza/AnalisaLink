@@ -1,8 +1,9 @@
 // Testes automáticos da API: npm test
-// Liga o servidor em outra porta, com um banco temporário, e faz requisições reais.
+// Liga o servidor em outra porta, com um banco SQLite temporário, e faz requisições reais.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,23 +11,53 @@ import { join } from "node:path";
 const PORTA = 3101;
 const BASE = "http://localhost:" + PORTA;
 let processo;
+let arquivoBanco;
 
-async function chamar(metodo, caminho, corpo) {
+function arquivoTemporario(nome) {
+  return join(mkdtempSync(join(tmpdir(), "analisalink-")), nome);
+}
+
+// Liga o servidor com um banco específico e espera a mensagem "rodando".
+function ligar(porta, arquivo) {
+  const proc = spawn(process.execPath, ["server/server.js"], { env: { ...process.env, PORT: String(porta), DB_FILE: arquivo } });
+  let saida = "";
+  const pronto = new Promise((resolve, reject) => {
+    proc.stdout.on("data", (pedaco) => {
+      saida += pedaco;
+      if (saida.includes("rodando")) resolve();
+    });
+    proc.on("exit", (codigo) => reject(new Error("o servidor encerrou com código " + codigo)));
+  });
+  return { proc, pronto };
+}
+
+async function desligar(servidor) {
+  servidor.proc.kill();
+  await once(servidor.proc, "exit");
+}
+
+async function abrirBanco(arquivo) {
+  const { DatabaseSync } = await import("node:sqlite");
+  return new DatabaseSync(arquivo);
+}
+
+async function chamar(metodo, caminho, corpo, base = BASE) {
   const opcoes = { method: metodo };
   if (corpo !== undefined) {
     opcoes.headers = { "Content-Type": "application/json" };
     opcoes.body = typeof corpo === "string" ? corpo : JSON.stringify(corpo);
   }
-  const resposta = await fetch(BASE + caminho, opcoes);
+  const resposta = await fetch(base + caminho, opcoes);
   const texto = await resposta.text();
   return { status: resposta.status, headers: resposta.headers, corpo: texto ? JSON.parse(texto) : null };
 }
 
+let servidorPrincipal;
 before(async () => {
-  const arquivo = join(mkdtempSync(join(tmpdir(), "analisalink-")), "db.json");
-  writeFileSync(arquivo, JSON.stringify({ analises: [] }));
-  processo = spawn(process.execPath, ["server/server.js"], { env: { ...process.env, PORT: String(PORTA), DB_FILE: arquivo } });
-  await new Promise((resolve) => processo.stdout.on("data", resolve));
+  arquivoBanco = arquivoTemporario("teste.db");
+  servidorPrincipal = ligar(PORTA, arquivoBanco);
+  processo = servidorPrincipal.proc;
+  await servidorPrincipal.pronto;
 });
 
 after(() => processo.kill());
@@ -157,4 +188,101 @@ test("o formato de todos os erros é { erro: { status, codigo, mensagem } }", as
   const r = await chamar("GET", "/analises/999");
   assert.deepEqual(Object.keys(r.corpo.erro).sort(), ["codigo", "mensagem", "status"]);
   assert.equal(r.corpo.erro.status, 404);
+});
+
+/* ---------- Etapa 07: persistência em banco de dados ---------- */
+
+test("banco: os sinais ficam em outra tabela e são apagados em cascata", async () => {
+  const criada = await chamar("POST", "/analises", { url: "http://192.168.0.10/login" });
+  assert.equal(criada.corpo.signals.length, 3);   // HTTP, IP e a palavra "login"
+  const banco = await abrirBanco(arquivoBanco);
+  const contar = () => banco.prepare("SELECT count(*) AS n FROM sinais WHERE analise_id = ?").get(criada.corpo.id).n;
+  assert.equal(contar(), 3);
+  await chamar("DELETE", "/analises/" + criada.corpo.id);
+  assert.equal(contar(), 0);
+  banco.close();
+});
+
+test("banco: PATCH com nova url troca os sinais gravados", async () => {
+  const criada = await chamar("POST", "/analises", { url: "http://192.168.0.10/login" });
+  const r = await chamar("PATCH", "/analises/" + criada.corpo.id, { url: "https://www.exemplo.com.br" });
+  assert.equal(r.corpo.score, 0);
+  assert.equal(r.corpo.signals.length, 0);
+  const banco = await abrirBanco(arquivoBanco);
+  assert.equal(banco.prepare("SELECT count(*) AS n FROM sinais WHERE analise_id = ?").get(criada.corpo.id).n, 0);
+  banco.close();
+  await chamar("DELETE", "/analises/" + criada.corpo.id);
+});
+
+test("banco: ids não são reaproveitados depois de excluir o último registro", async () => {
+  const a = await chamar("POST", "/analises", { url: "https://a.com" });
+  await chamar("DELETE", "/analises/" + a.corpo.id);
+  const b = await chamar("POST", "/analises", { url: "https://b.com" });
+  assert.ok(b.corpo.id > a.corpo.id);
+  await chamar("DELETE", "/analises/" + b.corpo.id);
+});
+
+test("banco: a busca trata % e _ como texto comum, e não como curingas", async () => {
+  const c = await chamar("POST", "/analises", { url: "https://exemplo.com/50%25_off" });
+  const porcento = await chamar("GET", "/analises?busca=" + encodeURIComponent("%"));
+  assert.deepEqual(porcento.corpo.map((a) => a.id), [c.corpo.id]);
+  const sublinhado = await chamar("GET", "/analises?busca=" + encodeURIComponent("_"));
+  assert.deepEqual(sublinhado.corpo.map((a) => a.id), [c.corpo.id]);
+  await chamar("DELETE", "/analises/" + c.corpo.id);
+});
+
+test("banco: o próprio banco recusa dados inválidos (CHECK e chave estrangeira)", async () => {
+  const banco = await abrirBanco(arquivoBanco);
+  banco.exec("PRAGMA foreign_keys = ON");
+  assert.throws(() => banco.prepare(
+    "INSERT INTO analises (url, protocolo, dominio, caminho, pontuacao, classificacao) VALUES ('x', 'http', 'x', '/', 150, 'Suspeita')").run(), /CHECK/);
+  assert.throws(() => banco.prepare("INSERT INTO sinais (analise_id, texto, pontos) VALUES (9999, 'x', 5)").run(), /FOREIGN KEY/);
+  banco.close();
+});
+
+test("persistência: os dados continuam no banco depois de reiniciar o servidor", async () => {
+  const arquivo = arquivoTemporario("persistencia.db");
+  const base = "http://localhost:3102";
+
+  const primeiro = ligar(3102, arquivo);
+  await primeiro.pronto;
+  const criada = await chamar("POST", "/analises", { url: "http://192.168.0.10/login", observacao: "sobrevive" }, base);
+  await desligar(primeiro);
+
+  const segundo = ligar(3102, arquivo);
+  await segundo.pronto;
+  const lida = await chamar("GET", "/analises/" + criada.corpo.id, undefined, base);
+  assert.equal(lida.status, 200);
+  assert.equal(lida.corpo.observacao, "sobrevive");
+  assert.equal(lida.corpo.signals.length, 3);
+  await desligar(segundo);
+});
+
+test("erro de persistência: arquivo de banco inválido impede o servidor de subir, com mensagem clara", async () => {
+  const arquivo = arquivoTemporario("quebrado.db");
+  writeFileSync(arquivo, "isto não é um banco SQLite, é só texto");
+  const proc = spawn(process.execPath, ["server/server.js"], { env: { ...process.env, PORT: "3103", DB_FILE: arquivo } });
+  let erro = "";
+  proc.stderr.on("data", (pedaco) => (erro += pedaco));
+  const [codigo] = await once(proc, "exit");
+  assert.equal(codigo, 1);
+  assert.match(erro, /Não foi possível abrir o banco de dados/);
+});
+
+test("erro de persistência: falha do banco em funcionamento vira 500 genérico, sem vazar detalhes", async () => {
+  const arquivo = arquivoTemporario("falha.db");
+  const base = "http://localhost:3104";
+  const servidor = ligar(3104, arquivo);
+  await servidor.pronto;
+  await chamar("POST", "/analises", { url: "https://a.com" }, base);
+
+  const banco = await abrirBanco(arquivo);   // outra conexão apaga uma tabela "por baixo" da API
+  banco.exec("DROP TABLE sinais");
+  banco.close();
+
+  const r = await chamar("GET", "/analises", undefined, base);
+  assert.equal(r.status, 500);
+  assert.equal(r.corpo.erro.codigo, "ERRO_BANCO");
+  assert.ok(!/sinais|sqlite|no such table/i.test(r.corpo.erro.mensagem));
+  await desligar(servidor);
 });
