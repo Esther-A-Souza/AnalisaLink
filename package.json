@@ -1,11 +1,16 @@
 {
   "name": "analisalink",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Ferramenta acadêmica de análise de características visíveis de URLs.",
   "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "start": "node server/server.js",
     "api": "node server/server.js --delay 800",
+    "db:criar": "node server/db/criar.js",
+    "db:exemplo": "node server/db/exemplo.js",
     "test": "node --test tests/api.test.js"
   }
 }
